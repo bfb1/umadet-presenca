@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UMADET 2025 - Sistema de Controle de Presença</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        /* CSS do sistema UMADET */
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        .container-umadet {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .loading-indicator {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2em;
+            color: #007bff;
+        }
+        h1 {
+            text-align: center;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+        .tab {
+            padding: 12px 25px;
+            cursor: pointer;
+            background-color: #2c2c2c;
+            border: 1px solid #333;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            margin-right: 5px;
+            color: #b0b0b0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .tab:hover {
+            background-color: #383838;
+            color: #ffffff;
+        }
+        .tab.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .tab-content {
+            display: none;
+            padding: 25px;
+            border: 1px solid #333;
+            border-top: none;
+            background-color: #252525;
+            border-radius: 0 0 8px 8px;
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .tab-content.active {
+            display: block;
+        }
+        form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #c0c0c0;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            box-sizing: border-box;
+            background-color: #2c2c2c;
+            color: #e0e0e0;
+            font-size: 15px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+        input[type="file"] {
+            padding: 8px;
+            background-color: #2c2c2c;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            border-radius: 6px;
+        }
+        input[type="file"]::-webkit-file-upload-button {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: background-color 0.3s;
+        }
+        input[type="file"]::-webkit-file-upload-button:hover {
+            background-color: #0056b3;
+        }
+        input[type="file"]::-moz-file-upload-button {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        input[type="file"]::-moz-file-upload-button:hover {
+             background-color: #0056b3;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            font-weight: 500;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button.secondary {
+            background-color: #6c757d;
+        }
+        button.secondary:hover {
+            background-color: #545b62;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+        }
+        th, td {
+            border: 1px solid #444;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #333;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #2c2c2c;
+        }
+        tr:hover {
+            background-color: #383838;
+        }
+        .photo-preview {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border: 1px solid #555;
+            border-radius: 6px;
+            margin-top: 8px;
+            background-color: #333;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        .chart-container {
+            width: 90%;
+            max-width: 700px;
+            margin: 30px auto;
+            padding: 15px;
+            background-color: #2c2c2c;
+            border-radius: 8px;
+        }
+        .search-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+            align-items: center;
+        }
+        .search-filters input, .search-filters select, .search-filters button {
+            flex: 1;
+            min-width: 150px;
+        }
+        .search-filters button {
+            padding: 12px;
+        }
+        .logo-header {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+            margin-bottom: 25px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 15px;
+            text-align: left;
+        }
+        .main-title-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+            justify-content: flex-start;
+            width: 100%;
+        }
+        .main-title-wrapper img {
+            height: 40px;
+            width: auto;
+        }
+        .logo-header h1 {
+            margin: 0;
+            font-size: 2.2em;
+            color: #ffffff;
+            white-space: nowrap;
+            text-align: left;
+        }
+        .logo-header .subtitle {
+            font-size: 0.8em;
+            color: #b0b0b0;
+            margin-top: 5px;
+            text-align: left;
+            width: 100%;
+        }
+        h2 {
+            color: #e0e0e0;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        #tabelaMembros td button, #tabelaPresenca td button {
+            padding: 8px 12px;
+            font-size: 14px;
+            margin-right: 5px;
+        }
+        #tabelaMembros td button:last-child, #tabelaPresenca td button:last-child {
+            margin-right: 0;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2c2c2c;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #007bff;
+        }
+        .alert-firebase {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .alert-firebase.success {
+            background-color: #28a745;
+            color: white;
+        }
+        .alert-firebase.error {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        /* CSS do sistema de Login */
+        .container {
+          background: white;
+          padding: 30px;
+          border-radius: 10px;
+          box-shadow: 0 0 15px rgba(0,0,0,0.2);
+          width: 340px;
+          text-align: center;
+          margin: auto; /* Centraliza na tela */
+          color: black;
+        }
+        .container h2 {
+            color: #333;
+            border-bottom: none;
+        }
+        .container button {
+            background-color: #333;
+        }
+        .container button:hover {
+            background-color: #555;
+        }
+        .container input {
+          width: 90%;
+          padding: 8px;
+          margin: 10px 0;
+        }
+        .message {
+          color: red;
+        }
+        .user-list {
+          margin-top: 20px;
+          text-align: left;
+          max-height: 200px;
+          overflow-y: auto;
+          border-top: 1px solid #ccc;
+          padding-top: 10px;
+        }
+        .user-item {
+          margin-bottom: 8px;
+        }
+        .user-item span {
+          display: inline-block;
+          width: 150px;
+        }
+        .user-item input {
+          width: 100px;
+        }
+        hr {
+            border-color: #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-section" class="container" style="display: block;">
+      <h2>Login</h2>
+      <input type="text" id="login-user" placeholder="Usuário">
+      <input type="password" id="login-pass" placeholder="Senha">
+      <button onclick="login()">Entrar</button>
+      <p class="message" id="login-message"></p>
+      <hr>
+      <button onclick="showAdminLogin()">Área do Programador</button>
+    </div>
+
+    <div id="admin-section" class="container" style="display: none;">
+      <h2>Senha do Programador</h2>
+      <input type="password" id="admin-pass" placeholder="Senha de programador">
+      <button onclick="checkAdmin()">Acessar Cadastro</button>
+      <button onclick="goToLogin()">Voltar</button>
+      <p class="message" id="admin-message"></p>
+    </div>
+
+    <div id="register-section" class="container" style="display: none;">
+      <h2>Cadastrar Novo Usuário</h2>
+      <input type="text" id="new-user" placeholder="Novo usuário">
+      <input type="password" id="new-pass" placeholder="Nova senha">
+      <button onclick="register()">Cadastrar</button>
+      <button onclick="goToLogin()">Voltar ao Login</button>
+      <p class="message" id="register-message"></p>
+
+      <div class="user-list" id="user-list">
+        <h3>Usuários Cadastrados</h3>
+      </div>
+    </div>
+    
+    <div id="umadet-system" class="container-umadet" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+             <div class="logo-header">
+                <div class="main-title-wrapper">
+                    <img src="assembleia-de-deus-pernambuco-logo-D1E3519F07-seeklogo.com.png" alt="Logo AD Pernambuco Pequeno">
+                    <h1>UMADET 2025 ASSEMBLEIA DE DEUS EM TRINDADE-PE</h1>
+                </div>
+                <p class="subtitle">PASTOR PRESIDENTE: AILTON JOSÉ ALVES - PASTOR LOCAL: ALTAMIR PEREIRA</p>
+            </div>
+            <button onclick="logout()">Sair</button>
+        </div>
+
+        <div id="loadingIndicator" class="loading-indicator">Carregando dados do Firebase...</div>
+        <div id="firebaseAlert" class="alert-firebase"></div>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="openTab('cadastro')">Cadastro</div>
+            <div class="tab" onclick="openTab('presenca')">Registrar Presença</div>
+            <div class="tab" onclick="openTab('relatorios')">Relatórios</div>
+        </div>
+        
+        <div id="cadastro" class="tab-content active">
+            <h2>Cadastro de Membros</h2>
+            <form id="cadastroForm">
+                <div class="form-group">
+                    <label for="cpf">CPF:</label>
+                    <input type="text" id="cpf" placeholder="Digite o CPF" required>
+                </div>
+                <div class="form-group">
+                    <label for="nome">Nome Completo:</label>
+                    <input type="text" id="nome" placeholder="Digite o nome completo" required>
+                </div>
+                <div class="form-group">
+                    <label for="foto">Foto (Max 1MB):</label>
+                    <input type="file" id="foto" accept="image/*">
+                    <img id="fotoPreview" class="photo-preview" src="" alt="Pré-visualização da foto" style="display: none;">
+                </div>
+                <div class="form-group">
+                    <label for="cartao">Número do Cartão de Membro:</label>
+                    <input type="text" id="cartao" placeholder="Digite o número do cartão">
+                </div>
+                <div class="form-group">
+                    <label for="idade">Idade:</label>
+                    <input type="number" id="idade" placeholder="Digite a idade" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="contato">Contato (WhatsApp):</label>
+                    <input type="text" id="contato" placeholder="Digite o número de WhatsApp">
+                </div>
+                <div class="form-group">
+                    <label for="dataNascimento">Data de Nascimento:</label>
+                    <input type="date" id="dataNascimento">
+                </div>
+                <div class="form-group">
+                    <label for="congregacao">Congregação:</label>
+                    <select id="congregacao">
+                        <option value="">Selecione a congregação</option>
+                        <option value="Templo Sede">Templo Sede</option>
+                        <option value="Vila Saraiva">Vila Saraiva</option>
+                        <option value="Cohab">Cohab</option>
+                        <option value="Lagoa do Barro">Lagoa do Barro</option>
+                        <option value="Juá">Juá</option>
+                        <option value="Bonita">Bonita</option>
+                        <option value="São Geraldo">São Geraldo</option>
+                        <option value="Divino Espírito Santo">Divino Espírito Santo</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="membro">Membro:</label>
+                    <select id="membro">
+                        <option value="Sim">Sim</option>
+                        <option value="Não">Não</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="trabalha">Trabalha:</label>
+                    <select id="trabalha">
+                        <option value="Sim">Sim</option>
+                        <option value="Não" selected>Não</option> </select>
+                </div>
+                <div class="form-group">
+                    <label for="estuda">Estuda:</label>
+                    <select id="estuda">
+                        <option value="Sim">Sim</option>
+                        <option value="Não" selected>Não</option> </select>
+                </div>
+                <div class="form-group full-width">
+                    <button type="submit" id="btnSubmitCadastro">Cadastrar</button>
+                </div>
+            </form>
+            
+            <h2>Membros Cadastrados</h2>
+            <table id="tabelaMembros">
+                <thead>
+                    <tr>
+                        <th>CPF</th>
+                        <th>Nome</th>
+                        <th>Cartão</th>
+                        <th>Idade</th>
+                        <th>Contato</th>
+                        <th>Data Nasc.</th>
+                        <th>Congregação</th>
+                        <th>Membro</th>
+                        <th>Trabalha</th>
+                        <th>Estuda</th>
+                        <th>Foto</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            </div>
+        
+        <div id="presenca" class="tab-content">
+            <h2>Registrar Presença</h2>
+            <form id="presencaForm">
+                <div class="form-group">
+                    <label for="dataPresenca">Data:</label>
+                    <input type="date" id="dataPresenca" required>
+                </div>
+                <div class="form-group">
+                    <label for="membroPresenca">Membro:</label>
+                    <select id="membroPresenca" required>
+                        <option value="">Selecione um membro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="presente">Presente:</label>
+                    <select id="presente" required>
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                    </select>
+                </div>
+                <div class="form-group full-width">
+                    <button type="submit">Registrar Presença</button>
+                </div>
+            </form>
+            
+            <h2>Registros de Presença</h2>
+            <table id="tabelaPresenca">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Membro (CPF)</th>
+                        <th>Nome Membro</th>
+                        <th>Presente</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <div id="relatorios" class="tab-content">
+            <h2>Relatórios de Presença</h2>
+            <div class="search-filters">
+                <input type="date" id="dataInicio" placeholder="Data início">
+                <input type="date" id="dataFim" placeholder="Data fim">
+                <select id="filtroMembro">
+                    <option value="">Todos os membros</option>
+                </select>
+                <button onclick="gerarRelatorio()">Filtrar</button>
+            </div>
+            <button onclick="exportarPDF()" style="margin-bottom: 15px;">Exportar PDF de Presença</button>
+            <h3>Dados do Relatório de Presença</h3>
+            <table id="tabelaRelatorio">
+                <thead>
+                    <tr>
+                        <th>Membro</th>
+                        <th>Presenças</th>
+                        <th>Faltas</th>
+                        <th>Percentual</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <div class="chart-container">
+                <canvas id="presencaChart"></canvas>
+            </div>
+            
+            <h2>Relatório de Membros Cadastrados</h2>
+            <button onclick="exportarMembrosPDF()" style="margin-bottom: 15px;">Exportar PDF de Membros</button>
+            <table id="tabelaRelatorioMembros"> <thead>
+                    <tr>
+                        <th>CPF</th>
+                        <th>Nome</th>
+                        <th>Cartão</th>
+                        <th>Idade</th>
+                        <th>Contato</th>
+                        <th>Data Nasc.</th>
+                        <th>Congregação</th>
+                        <th>Membro</th>
+                        <th>Trabalha</th>
+                        <th>Estuda</th>
+                    </tr>
+                </thead>
+                <tbody></tbody> </table>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis e funções do sistema de Login
+        const ADMIN_PASSWORD = "brunofiel";
+
+        function hideAll() {
+            document.getElementById("login-section").style.display = "none";
+            document.getElementById("admin-section").style.display = "none";
+            document.getElementById("register-section").style.display = "none";
+            document.getElementById("umadet-system").style.display = "none";
+        }
+        
+        function goToLogin() {
+            hideAll();
+            document.getElementById("login-section").style.display = "block";
+            document.getElementById("admin-pass").value = "";
+            document.getElementById("admin-message").innerText = "";
+            document.getElementById("register-message").innerText = "";
+        }
+        
+        function login() {
+            const user = document.getElementById("login-user").value;
+            const pass = document.getElementById("login-pass").value;
+            const stored = JSON.parse(localStorage.getItem("users")) || {};
+
+            if (stored[user] && stored[user] === pass) {
+                hideAll();
+                document.getElementById("umadet-system").style.display = "block";
+                document.getElementById("login-message").innerText = "";
+                // Inicia o sistema UMADET após o login
+                inicializarSistemaUmadet();
+            } else {
+                document.getElementById("login-message").innerText = "Usuário ou senha incorretos.";
+            }
+        }
+        
+        function logout() {
+            hideAll();
+            document.getElementById("login-section").style.display = "block";
+            // Reseta os campos de login
+            document.getElementById("login-user").value = "";
+            document.getElementById("login-pass").value = "";
+            document.getElementById("login-message").innerText = "";
+        }
+
+        function showAdminLogin() {
+            hideAll();
+            document.getElementById("admin-section").style.display = "block";
+        }
+
+        function checkAdmin() {
+            const inputPass = document.getElementById("admin-pass").value;
+            if (inputPass === ADMIN_PASSWORD) {
+                hideAll();
+                document.getElementById("register-section").style.display = "block";
+                updateUserList();
+            } else {
+                document.getElementById("admin-message").innerText = "Senha de programador incorreta.";
+            }
+        }
+
+        function register() {
+            const user = document.getElementById("new-user").value.trim();
+            const pass = document.getElementById("new-pass").value.trim();
+
+            if (!user || !pass) {
+                document.getElementById("register-message").style.color = "red";
+                document.getElementById("register-message").innerText = "Preencha todos os campos.";
+                return;
+            }
+
+            const stored = JSON.parse(localStorage.getItem("users")) || {};
+            if (stored[user]) {
+                document.getElementById("register-message").innerText = "Usuário já existe.";
+                return;
+            }
+
+            stored[user] = pass;
+            localStorage.setItem("users", JSON.stringify(stored));
+
+            document.getElementById("register-message").style.color = "green";
+            document.getElementById("register-message").innerText = "Usuário cadastrado com sucesso!";
+            document.getElementById("new-user").value = "";
+            document.getElementById("new-pass").value = "";
+            updateUserList();
+        }
+
+        function updateUserList() {
+            const stored = JSON.parse(localStorage.getItem("users")) || {};
+            const userList = document.getElementById("user-list");
+
+            if (!stored || Object.keys(stored).length === 0) {
+                userList.innerHTML = "<h3>Usuários Cadastrados</h3><p>Nenhum usuário cadastrado.</p>";
+                return;
+            }
+
+            userList.innerHTML = "<h3>Usuários Cadastrados</h3>";
+            Object.entries(stored).forEach(([user, pass]) => {
+                const div = document.createElement("div");
+                div.className = "user-item";
+                div.innerHTML = `
+                    <input type="text" value="${user}" id="edit-user-${user}">
+                    <input type="password" value="${pass}" id="edit-pass-${user}">
+                    <button onclick="saveUser('${user}')">Salvar</button>
+                    <button onclick="deleteUser('${user}')">Excluir</button>
+                `;
+                userList.appendChild(div);
+            });
+        }
+        
+        function saveUser(originalUser) {
+            const newUser = document.getElementById(`edit-user-${originalUser}`).value.trim();
+            const newPass = document.getElementById(`edit-pass-${originalUser}`).value.trim();
+        
+            if (!newUser || !newPass) return;
+        
+            const stored = JSON.parse(localStorage.getItem("users")) || {};
+            delete stored[originalUser];
+            stored[newUser] = newPass;
+            localStorage.setItem("users", JSON.stringify(stored));
+            updateUserList();
+        }
+        
+        function deleteUser(user) {
+            const stored = JSON.parse(localStorage.getItem("users")) || {};
+            delete stored[user];
+            localStorage.setItem("users", JSON.stringify(stored));
+            updateUserList();
+        }
+
+        // --- Configuração e funções do Firebase (movidas para dentro de uma função) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyD_GCYQ1OgbjBTVzZVabRQQTf77Xjs47A",
+            authDomain: "mineradora-sao-jorge.firebaseapp.com",
+            databaseURL: "https://mineradora-sao-jorge-default-rtdb.firebaseio.com",
+            projectId: "mineradora-sao-jorge",
+            storageBucket: "mineradora-sao-jorge.appspot.com",
+            messagingSenderId: "1084057605066",
+            appId: "1:1084057605066:web:02d577be7d130e21ab0a91"
+        };
+        
+        let database;
+        let membrosRef;
+        let presencasRef;
+
+        let membros = [];
+        let presencas = [];
+        let editandoCPFOriginal = null;
+
+        const fotoInput = document.getElementById('foto');
+        const fotoPreview = document.getElementById('fotoPreview');
+        const tabelaMembrosBody = document.getElementById('tabelaMembros').getElementsByTagName('tbody')[0];
+        const tabelaPresencaBody = document.getElementById('tabelaPresenca').getElementsByTagName('tbody')[0];
+        const tabelaRelatorioBody = document.getElementById('tabelaRelatorio').getElementsByTagName('tbody')[0];
+        const selectMembroPresenca = document.getElementById('membroPresenca');
+        const selectFiltroMembro = document.getElementById('filtroMembro');
+        const presencaChartCtx = document.getElementById('presencaChart')?.getContext('2d');
+        const cadastroForm = document.getElementById('cadastroForm');
+        const btnSubmitCadastro = document.getElementById('btnSubmitCadastro');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const firebaseAlertDiv = document.getElementById('firebaseAlert');
+        let presencaChart;
+
+        function inicializarSistemaUmadet() {
+            if (!database) { // Evita inicializar o Firebase múltiplas vezes
+                firebase.initializeApp(firebaseConfig);
+                database = firebase.database();
+                membrosRef = database.ref('umadet/membros');
+                presencasRef = database.ref('umadet/presencas');
+                carregarDadosFirebase();
+            }
+
+            // Garante que o onload do sistema UMADET seja executado
+            cadastroForm.addEventListener('submit', handleCadastroSubmit);
+            document.getElementById('presencaForm').addEventListener('submit', registrarPresenca);
+            fotoInput.addEventListener('change', previewFoto);
+            
+            if (document.getElementById('relatorios').classList.contains('active') && presencaChartCtx) {
+                 gerarRelatorio();
+            } else if (document.getElementById('cadastro').classList.contains('active')) {
+                cancelarEdicao();
+            }
+            
+            document.getElementById('dataPresenca').value = new Date().toISOString().split('T')[0];
+            if (typeof Chart !== 'undefined') {
+                Chart.defaults.color = '#e0e0e0';
+                Chart.defaults.borderColor = '#444';
+            }
+            console.log("Sistema UMADET com Firebase inicializado.");
+        }
+
+        function showFirebaseAlert(type, message) {
+            firebaseAlertDiv.textContent = message;
+            firebaseAlertDiv.className = `alert-firebase ${type}`;
+            firebaseAlertDiv.style.display = 'block';
+            setTimeout(() => {
+                firebaseAlertDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function atualizarTodasAsTabelasEForms() {
+            atualizarTabelaMembros();
+            atualizarTabelaPresenca();
+            atualizarSelectMembros();
+            if (document.getElementById('relatorios').classList.contains('active') && presencaChartCtx) {
+                gerarRelatorio();
+            }
+        }
+
+        function openTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            const activeTabContent = document.getElementById(tabName);
+            const activeTabButton = document.querySelector(`.tab[onclick="openTab('${tabName}')"]`);
+
+            if(activeTabContent) activeTabContent.classList.add('active');
+            if(activeTabButton) activeTabButton.classList.add('active');
+
+            if (tabName === 'cadastro') {
+                cancelarEdicao();
+            }
+            if (tabName === 'presenca' || tabName === 'relatorios') {
+                atualizarSelectMembros();
+            }
+            if (tabName === 'relatorios' && presencaChartCtx) {
+                gerarRelatorio();
+            }
+        }
+
+        function previewFoto(event) {
+            const file = event.target.files[0];
+            if (file) {
+                if (file.size > 1024 * 1024) {
+                    alert("A foto é muito grande! O tamanho máximo é 1MB.");
+                    fotoInput.value = "";
+                    fotoPreview.src = '';
+                    fotoPreview.style.display = 'none';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    fotoPreview.src = e.target.result;
+                    fotoPreview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            } else {
+                fotoPreview.src = '';
+                fotoPreview.style.display = 'none';
+            }
+        }
+        
+        function limparFormCadastro() {
+            cadastroForm.reset();
+            fotoPreview.src = '';
+            fotoPreview.style.display = 'none';
+            document.getElementById('cpf').disabled = false;
+        }
+
+        function cancelarEdicao() {
+            editandoCPFOriginal = null;
+            btnSubmitCadastro.textContent = 'Cadastrar';
+            document.getElementById('cpf').disabled = false;
+            limparFormCadastro();
+        }
+
+        function atualizarTabelaMembros() {
+            tabelaMembrosBody.innerHTML = '';
+            membros.forEach((membro, index) => {
+                const row = tabelaMembrosBody.insertRow();
+                row.insertCell(0).textContent = membro.cpf;
+                row.insertCell(1).textContent = membro.nome;
+                row.insertCell(2).textContent = membro.cartao || '-';
+                row.insertCell(3).textContent = membro.idade || '-';
+                row.insertCell(4).textContent = membro.contato || '-';
+                row.insertCell(5).textContent = membro.dataNascimento ? new Date(membro.dataNascimento + "T00:00:00").toLocaleDateString('pt-BR') : '-';
+                row.insertCell(6).textContent = membro.congregacao || '-';
+                row.insertCell(7).textContent = membro.membro || '-';
+                row.insertCell(8).textContent = membro.trabalha || '-';
+                row.insertCell(9).textContent = membro.estuda || '-';
+
+                const fotoCell = row.insertCell(10);
+                if (membro.fotoUrl && membro.fotoUrl.startsWith("data:image")) {
+                    const img = document.createElement('img');
+                    img.src = membro.fotoUrl;
+                    img.style.width = "50px";
+                    img.style.height = "50px";
+                    img.style.objectFit = "cover";
+                    img.style.borderRadius = "4px";
+                    fotoCell.appendChild(img);
+                } else {
+                    fotoCell.textContent = "Sem foto";
+                }
+
+                const acoesCell = row.insertCell(11);
+                const editarBtn = document.createElement('button');
+                editarBtn.textContent = 'Editar';
+                editarBtn.onclick = () => prepararEdicaoMembro(index);
+
+                const excluirBtn = document.createElement('button');
+                excluirBtn.textContent = 'Excluir';
+                excluirBtn.classList.add('secondary');
+                excluirBtn.onclick = () => excluirMembro(index);
+
+                acoesCell.appendChild(editarBtn);
+                acoesCell.appendChild(excluirBtn);
+            });
+        }
+
+        function atualizarSelectMembros() {
+            const currentMembroPresenca = selectMembroPresenca.value;
+            const currentFiltroMembro = selectFiltroMembro.value;
+
+            selectMembroPresenca.innerHTML = '<option value="">Selecione um membro</option>';
+            selectFiltroMembro.innerHTML = '<option value="">Todos os membros</option>';
+            
+            membros.forEach(membro => {
+                if (membro && membro.cpf && membro.nome) {
+                    const optionHtml = `<option value="${membro.cpf}">${membro.nome} (${membro.cpf})</option>`;
+                    selectMembroPresenca.insertAdjacentHTML('beforeend', optionHtml);
+                    selectFiltroMembro.insertAdjacentHTML('beforeend', optionHtml);
+                }
+            });
+            if (membros.find(m => m && m.cpf === currentMembroPresenca)) {
+                selectMembroPresenca.value = currentMembroPresenca;
+            }
+            if (membros.find(m => m && m.cpf === currentFiltroMembro)) {
+                selectFiltroMembro.value = currentFiltroMembro;
+            }
+        }
+
+        function atualizarTabelaPresenca() {
+            tabelaPresencaBody.innerHTML = '';
+            const presencasOrdenadas = [...presencas].sort((a, b) => {
+                if (a.data > b.data) return -1;
+                if (a.data < b.data) return 1;
+                return (a.nomeMembro || "").localeCompare(b.nomeMembro || "");
+            });
+
+            presencasOrdenadas.forEach((presenca) => {
+                const row = tabelaPresencaBody.insertRow();
+                row.insertCell(0).textContent = presenca.data ? new Date(presenca.data + "T00:00:00").toLocaleDateString('pt-BR') : 'N/A';
+                row.insertCell(1).textContent = presenca.cpfMembro || 'N/A';
+                row.insertCell(2).textContent = presenca.nomeMembro || 'N/A';
+                row.insertCell(3).textContent = presenca.presente ? 'Sim' : 'Não';
+                
+                const acoesCell = row.insertCell(4);
+                const excluirBtn = document.createElement('button');
+                excluirBtn.textContent = 'Excluir';
+                excluirBtn.classList.add('secondary');
+                excluirBtn.onclick = () => excluirPresenca(presenca.id);
+                acoesCell.appendChild(excluirBtn);
+            });
+        }
+
+        function carregarDadosFirebase() {
+            loadingIndicator.style.display = 'block';
+            membrosRef.on('value', snapshot => {
+                const dados = snapshot.val();
+                if (dados && !Array.isArray(dados)) {
+                     membros = Object.keys(dados).map(key => ({ ...dados[key], firebaseId: key }));
+                } else {
+                     membros = dados || [];
+                }
+                atualizarTodasAsTabelasEForms();
+                loadingIndicator.style.display = 'none';
+            }, error => {
+                console.error("Erro ao carregar membros do Firebase: ", error);
+                showFirebaseAlert('error', 'Erro ao carregar membros. Verifique a conexão e as permissões do Firebase.');
+                loadingIndicator.style.display = 'none';
+            });
+
+            presencasRef.on('value', snapshot => {
+                const dados = snapshot.val();
+                presencas = dados ? Object.keys(dados).map(key => ({ id: key, ...dados[key] })) : [];
+                atualizarTodasAsTabelasEForms();
+            }, error => {
+                console.error("Erro ao carregar presenças do Firebase: ", error);
+                showFirebaseAlert('error', 'Erro ao carregar presenças. Verifique a conexão e as permissões do Firebase.');
+            });
+        }
+        
+        async function handleCadastroSubmit(event) {
+            event.preventDefault();
+            const cpf = document.getElementById('cpf').value.trim();
+            const nome = document.getElementById('nome').value.trim();
+            const cartao = document.getElementById('cartao').value.trim();
+            const idade = document.getElementById('idade').value;
+            const fotoFile = fotoInput.files[0];
+            let fotoUrlBase64 = fotoPreview.src;
+
+            const contato = document.getElementById('contato').value.trim();
+            const dataNascimento = document.getElementById('dataNascimento').value;
+            const congregacao = document.getElementById('congregacao').value;
+            const membroStatus = document.getElementById('membro').value;
+            const trabalha = document.getElementById('trabalha').value;
+            const estuda = document.getElementById('estuda').value;
+
+            if (!cpf || !nome) {
+                alert('CPF e Nome são obrigatórios.');
+                return;
+            }
+
+            if (fotoFile) {
+                if (fotoFile.size > 1024 * 1024) {
+                    alert("A foto é muito grande! O tamanho máximo é 1MB."); return;
+                }
+                try {
+                    fotoUrlBase64 = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = e => resolve(e.target.result);
+                        reader.onerror = e => reject(e);
+                        reader.readAsDataURL(fotoFile);
+                    });
+                } catch (error) {
+                    console.error("Erro ao ler a imagem:", error);
+                    alert("Ocorreu um erro ao processar a foto."); return;
+                }
+            }
+
+            const membroData = {
+                cpf,
+                nome,
+                fotoUrl: fotoUrlBase64,
+                cartao,
+                idade: parseInt(idade) || null,
+                contato,
+                dataNascimento,
+                congregacao,
+                membro: membroStatus,
+                trabalha,
+                estuda
+            };
+
+            if (editandoCPFOriginal) {
+                const membroParaAtualizar = membros.find(m => m.firebaseId === editandoCPFOriginal);
+                if (membroParaAtualizar) {
+                    if (cpf !== membroParaAtualizar.cpf && membros.some(m => m.cpf === cpf && m.firebaseId !== editandoCPFOriginal)) {
+                        alert('Este novo CPF já está cadastrado para outro membro.');
+                        return;
+                    }
+                    membrosRef.child(membroParaAtualizar.firebaseId).update(membroData)
+                        .then(() => {
+                            showFirebaseAlert('success', 'Membro atualizado com sucesso!');
+                            cancelarEdicao();
+                        })
+                        .catch(error => {
+                            console.error("Erro ao atualizar membro: ", error);
+                            showFirebaseAlert('error', 'Erro ao atualizar membro.');
+                        });
+                } else {
+                     showFirebaseAlert('error', 'Erro ao encontrar membro para atualizar.');
+                }
+            } else {
+                if (membros.some(m => m.cpf === cpf)) {
+                    alert('Este CPF já está cadastrado.');
+                    return;
+                }
+                const novoMembroRef = membrosRef.push();
+                novoMembroRef.set({ ...membroData, firebaseId: novoMembroRef.key })
+                    .then(() => {
+                        showFirebaseAlert('success', 'Membro cadastrado com sucesso!');
+                        limparFormCadastro();
+                    })
+                    .catch(error => {
+                        console.error("Erro ao cadastrar membro: ", error);
+                        showFirebaseAlert('error', 'Erro ao cadastrar membro.');
+                    });
+            }
+        }
+
+        function prepararEdicaoMembro(index) {
+            openTab('cadastro');
+            const membro = membros[index];
+            if (!membro) return;
+
+            editandoCPFOriginal = membro.firebaseId;
+            
+            document.getElementById('cpf').value = membro.cpf;
+            document.getElementById('nome').value = membro.nome;
+            document.getElementById('cartao').value = membro.cartao || '';
+            document.getElementById('idade').value = membro.idade || '';
+            
+            document.getElementById('contato').value = membro.contato || '';
+            document.getElementById('dataNascimento').value = membro.dataNascimento || '';
+            document.getElementById('congregacao').value = membro.congregacao || '';
+            document.getElementById('membro').value = membro.membro || 'Sim';
+            document.getElementById('trabalha').value = membro.trabalha || 'Não';
+            document.getElementById('estuda').value = membro.estuda || 'Não';
+            
+            if (membro.fotoUrl) {
+                fotoPreview.src = membro.fotoUrl;
+                fotoPreview.style.display = 'block';
+            } else {
+                fotoPreview.src = '';
+                fotoPreview.style.display = 'none';
+            }
+            fotoInput.value = "";
+            btnSubmitCadastro.textContent = 'Salvar Alterações';
+        }
+
+        function excluirMembro(index) {
+            const membro = membros[index];
+            if (!membro || !membro.firebaseId) {
+                 showFirebaseAlert('error', 'Não foi possível identificar o membro para exclusão.');
+                return;
+            }
+            if (confirm(`Tem certeza que deseja excluir o membro ${membro.nome}?`)) {
+                membrosRef.child(membro.firebaseId).remove()
+                    .then(() => {
+                        showFirebaseAlert('success', 'Membro excluído com sucesso!');
+                    })
+                    .catch(error => {
+                        console.error("Erro ao excluir membro: ", error);
+                        showFirebaseAlert('error', 'Erro ao excluir membro.');
+                    });
+            }
+        }
+        
+        function registrarPresenca(event) {
+            event.preventDefault();
+            const data = document.getElementById('dataPresenca').value;
+            const cpfMembro = document.getElementById('membroPresenca').value;
+            const presenteValor = document.getElementById('presente').value;
+            
+            if (!data || !cpfMembro) {
+                alert('Data e Membro são obrigatórios para registrar presença.');
+                return;
+            }
+            const membroSelecionado = membros.find(m => m.cpf === cpfMembro);
+            if (!membroSelecionado) {
+                alert('Membro selecionado não encontrado. Verifique o cadastro.');
+                return;
+            }
+            
+            const novaPresencaData = { 
+                data, 
+                cpfMembro, 
+                nomeMembro: membroSelecionado.nome,
+                presente: presenteValor === 'sim' 
+            };
+
+            const novaPresencaRef = presencasRef.push();
+            novaPresencaRef.set(novaPresencaData)
+                .then(() => {
+                    showFirebaseAlert('success', 'Presença registrada com sucesso!');
+                    document.getElementById('presencaForm').reset();
+                    document.getElementById('dataPresenca').value = new Date().toISOString().split('T')[0];
+                })
+                .catch(error => {
+                    console.error("Erro ao registrar presença: ", error);
+                    showFirebaseAlert('error', 'Erro ao registrar presença.');
+                });
+        }
+
+        function excluirPresenca(presencaId) {
+            if (!presencaId) {
+                showFirebaseAlert('error', 'Não foi possível identificar a presença para exclusão.');
+                return;
+            }
+            if (confirm('Tem certeza que deseja excluir este registro de presença?')) {
+                presencasRef.child(presencaId).remove()
+                    .then(() => {
+                        showFirebaseAlert('success', 'Registro de presença excluído com sucesso!');
+                    })
+                    .catch(error => {
+                        console.error("Erro ao excluir presença: ", error);
+                        showFirebaseAlert('error', 'Erro ao excluir presença.');
+                    });
+            }
+        }
+
+        function gerarRelatorio() {
+            if (!presencaChartCtx) return;
+
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            const cpfFiltro = document.getElementById('filtroMembro').value;
+            
+            let presencasFiltradasRelatorio = [...presencas];
+            if (dataInicio) presencasFiltradasRelatorio = presencasFiltradasRelatorio.filter(p => p.data >= dataInicio);
+            if (dataFim) presencasFiltradasRelatorio = presencasFiltradasRelatorio.filter(p => p.data <= dataFim);
+            
+            const relatorio = {};
+            const membrosParaRelatorio = cpfFiltro ? membros.filter(m => m.cpf === cpfFiltro) : [...membros];
+
+            membrosParaRelatorio.forEach(membro => {
+                if(!membro || !membro.cpf) return;
+                const presencasMembroFiltradas = presencasFiltradasRelatorio.filter(p => p.cpfMembro === membro.cpf);
+                const presentesCount = presencasMembroFiltradas.filter(p => p.presente).length;
+                const faltasCount = presencasMembroFiltradas.filter(p => !p.presente).length;
+                const totalEventosConsiderados = presentesCount + faltasCount;
+                const percentual = totalEventosConsiderados > 0 ? Math.round((presentesCount / totalEventosConsiderados) * 100) : 0;
+                
+                relatorio[membro.cpf] = { nome: membro.nome, presentes: presentesCount, faltas: faltasCount, percentual };
+            });
+            
+            tabelaRelatorioBody.innerHTML = '';
+            Object.values(relatorio).sort((a,b) => (a.nome || "").localeCompare(b.nome || "")).forEach(item => {
+                const row = tabelaRelatorioBody.insertRow();
+                row.insertCell(0).textContent = item.nome;
+                row.insertCell(1).textContent = item.presentes;
+                row.insertCell(2).textContent = item.faltas;
+                row.insertCell(3).textContent = `${item.percentual}%`;
+            });
+            
+            atualizarGrafico(relatorio);
+        }
+        
+        function atualizarGrafico(relatorioData) {
+            if (!presencaChartCtx) return;
+            const sortedRelatorio = Object.values(relatorioData).sort((a,b) => (a.nome || "").localeCompare(b.nome || ""));
+            const labels = sortedRelatorio.map(item => item.nome);
+            const dataPresentes = sortedRelatorio.map(item => item.presentes);
+            const dataFaltas = sortedRelatorio.map(item => item.faltas);
+            
+            if (presencaChart) presencaChart.destroy();
+            
+            presencaChart = new Chart(presencaChartCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Presenças', data: dataPresentes, backgroundColor: 'rgba(0, 123, 255, 0.7)', borderColor: 'rgba(0, 123, 255, 1)', borderWidth: 1 },
+                        { label: 'Faltas', data: dataFaltas, backgroundColor: 'rgba(220, 53, 69, 0.7)', borderColor: 'rgba(220, 53, 69, 1)', borderWidth: 1 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#e0e0e0' }, grid: { color: '#444' } },
+                        x: { ticks: { color: '#e0e0e0' }, grid: { color: '#444' } }
+                    },
+                    plugins: { legend: { labels: { color: '#e0e0e0' } } }
+                }
+            });
+        }
+
+        function exportarPDF() {
+            if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+                alert("Erro: Biblioteca principal PDF (jsPDF) não carregada corretamente.");
+                console.error("window.jspdf or window.jspdf.jsPDF is not defined.");
+                return;
+            }
+            const doc = new window.jspdf.jsPDF();
+            
+            if (typeof doc.autoTable !== 'function') {
+                alert("Erro: Plugin PDF AutoTable não carregado corretamente ou não anexado ao jsPDF.");
+                console.error("doc.autoTable is not a function. Verifique a ordem de carregamento dos scripts jsPDF e AutoTable.");
+                return;
+            }
+            
+            doc.setFontSize(18);
+            doc.text("Relatório de Presença - UMADET 2025", 14, 22);
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            const cpfFiltro = document.getElementById('filtroMembro').value;
+            const membroFiltrado = membros.find(m => m.cpf === cpfFiltro);
+            const membroFiltradoNome = cpfFiltro ? (membroFiltrado ? membroFiltrado.nome : "CPF não encontrado") : "Todos os membros";
+
+            let y = 30;
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            doc.text(`Filtros Aplicados:`, 14, y); y += 7;
+            doc.text(`Período: ${dataInicio || 'N/A'} até ${dataFim || 'N/A'}`, 14, y); y += 7;
+            doc.text(`Membro: ${membroFiltradoNome}`, 14, y); y += 10;
+
+            const head = [['Membro', 'Presenças', 'Faltas', '%']];
+            const body = [];
+            const rows = tabelaRelatorioBody.rows;
+            for (let i = 0; i < rows.length; i++) {
+                const rowData = [];
+                for (let j = 0; j < rows[i].cells.length; j++) {
+                    rowData.push(rows[i].cells[j].innerText);
+                }
+                body.push(rowData);
+            }
+
+            if (body.length > 0) {
+                doc.autoTable({ startY: y, head: head, body: body, theme: 'striped', headStyles: { fillColor: [0, 123, 255] } });
+            } else {
+                doc.text("Nenhum dado para exibir no relatório com os filtros atuais.", 14, y);
+            }
+            doc.save('relatorio_presenca_umadet.pdf');
+        }
+
+        function exportarMembrosPDF() {
+            if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+                alert("Erro: Biblioteca principal PDF (jsPDF) não carregada corretamente.");
+                console.error("window.jspdf or window.jspdf.jsPDF is not defined.");
+                return;
+            }
+            const doc = new window.jspdf.jsPDF();
+
+            if (typeof doc.autoTable !== 'function') {
+                alert("Erro: Plugin PDF AutoTable não carregado corretamente ou não anexado ao jsPDF.");
+                console.error("doc.autoTable is not a function. Verifique a ordem de carregamento dos scripts jsPDF e AutoTable.");
+                return;
+            }
+
+            doc.setFontSize(18);
+            doc.text("Relatório de Membros Cadastrados - UMADET 2025", 14, 22);
+
+            let y = 30;
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+
+            const head = [['CPF', 'Nome', 'Cartão', 'Idade', 'Contato', 'Data Nasc.', 'Congregação', 'Membro', 'Trabalha', 'Estuda']];
+            const body = membros.map(m => [
+                m.cpf, 
+                m.nome, 
+                m.cartao || '-', 
+                m.idade || '-', 
+                m.contato || '-', 
+                m.dataNascimento ? new Date(m.dataNascimento + "T00:00:00").toLocaleDateString('pt-BR') : '-',
+                m.congregacao || '-', 
+                m.membro || '-', 
+                m.trabalha || '-', 
+                m.estuda || '-'
+            ]);
+
+            if (body.length > 0) {
+                doc.autoTable({ startY: y, head: head, body: body, theme: 'striped', headStyles: { fillColor: [0, 123, 255] } });
+            } else {
+                doc.text("Nenhum membro cadastrado.", 14, y);
+            }
+            doc.save('relatorio_membros_umadet.pdf');
+        }
+
+        // Evento de carregamento da página
+        window.onload = function() {
+            // Verifica se há pelo menos um usuário cadastrado
+            const stored = JSON.parse(localStorage.getItem("users")) || {};
+            if (Object.keys(stored).length === 0) {
+                // Se não houver, exibe a tela de cadastro para o programador
+                showAdminLogin();
+            } else {
+                // Caso contrário, exibe a tela de login
+                goToLogin();
+            }
+            console.log("Sistema principal carregado, aguardando login.");
+        };
+
+    </script>
+</body>
+</html>
