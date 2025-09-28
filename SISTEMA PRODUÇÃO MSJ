@@ -1,0 +1,1347 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Consolidado de Produção — Telas</title>
+  <style>
+    /* Navegação mínima — não altera os estilos internos das páginas embutidas */
+    body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f4f4f4}
+    header{background:#222;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px}
+    header h1{font-size:18px;margin:0}
+    nav{display:flex;gap:8px}
+    nav button{padding:8px 12px;border-radius:6px;border:none;cursor:pointer;background:#007bff;color:#fff}
+    nav button[aria-current="true"]{background:#0056b3}
+    main{padding:16px}
+    .iframe-wrap{width:100%;height:640px;border:1px solid #ccc;background:#fff}
+    .controls{margin:12px 0;display:flex;gap:8px;align-items:center}
+    .hidden{display:none}
+    
+    /* Estilos para o relatório consolidado */
+    .relatorio-consolidado { padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    .relatorio-consolidado h2 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+    .relatorio-consolidado h3 { color: #007bff; margin-top: 20px; }
+    .relatorio-consolidado table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    .relatorio-consolidado th, .relatorio-consolidado td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    .relatorio-consolidado th { background-color: #f2f2f2; font-weight: bold; }
+    .relatorio-consolidado .total { background-color: #e9ecef; font-weight: bold; }
+    .relatorio-consolidado .sem-dados { text-align: center; color: #6c757d; font-style: italic; padding: 20px; }
+    .relatorio-consolidado .secao { margin-bottom: 30px; }
+    .relatorio-consolidado .cabecalho-relatorio { text-align: center; margin-bottom: 30px; }
+    .relatorio-consolidado .cabecalho-relatorio h1 { color: #333; margin-bottom: 5px; }
+    .relatorio-consolidado .cabecalho-relatorio .data-relatorio { color: #6c757d; font-size: 1.2em; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Consolidado de Produção — Painel</h1>
+    <nav id="nav">
+      <button data-screen="britagem">Boletim Britagem</button>
+      <button data-screen="moagem3">Moagem 3</button>
+      <button data-screen="moagem_3ton">Moagem 1&2 (3 t/h)</button>
+      <button data-screen="moagem_6ton">Moagem 1&2 (6 t/h)</button>
+      <button data-screen="ensacado">Ensacado</button>
+      <button data-screen="consolidado">Consolidado / Relatório</button>
+    </nav>
+  </header>
+  <main>
+    <div id="screens">
+      <!-- iframes serão carregadas via JS a partir dos templates abaixo -->
+      <div class="screen" id="screen-britagem" style="display:none">
+        <iframe class="iframe-wrap" id="iframe-britagem"></iframe>
+      </div>
+
+      <div class="screen" id="screen-moagem3" style="display:none">
+        <iframe class="iframe-wrap" id="iframe-moagem3"></iframe>
+      </div>
+
+      <div class="screen" id="screen-moagem_3ton" style="display:none">
+        <iframe class="iframe-wrap" id="iframe-moagem_3ton"></iframe>
+      </div>
+
+      <div class="screen" id="screen-moagem_6ton" style="display:none">
+        <iframe class="iframe-wrap" id="iframe-moagem_6ton"></iframe>
+      </div>
+
+      <div class="screen" id="screen-ensacado" style="display:none">
+        <iframe class="iframe-wrap" id="iframe-ensacado"></iframe>
+      </div>
+
+      <div class="screen" id="screen-consolidado" style="display:none">
+        <div class="controls">
+          <label>Data para consolidar: <input type="date" id="dataConsolidar"></label>
+          <button id="btnBuscar">Buscar lançamentos</button>
+          <button id="btnGerarPdf">Gerar PDF do dia</button>
+        </div>
+        <div id="resultadoConsolidado"></div>
+      </div>
+    </div>
+
+    <!-- Templates: aqui colocamos o HTML original de cada arquivo (sem alterar) -->
+    <!-- BOLETIM BRITAGEM.html -->
+    <template id="tpl-britagem">
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Boletim da Produção da Britagem</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+    h2 { background: #333; color: #fff; padding: 10px; border-radius: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+    th { background: #007bff; color: white; }
+    input[type="number"], input[type="date"], input[type="text"] { width: 120px; padding: 5px; text-align: center; }
+    .output, .result { background-color: #e9ecef; font-weight: bold; }
+    button { margin-top: 10px; padding: 8px 16px; border: none; background: #007bff; color: white; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .btn-apagar { background: #dc3545; }
+    .btn-apagar:hover { background: #a71d2a; }
+  </style>
+</head>
+<body>
+
+  <h2>Boletim da Produção da Britagem</h2>
+
+  <!-- Dados do Lançamento -->
+  <table>
+    <thead>
+      <tr>
+        <th>Data do Lançamento</th>
+        <th>Horímetro Inicial</th>
+        <th>Horímetro Final</th>
+        <th>Total de Horas</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><input type="date" id="dataLancamento"></td>
+        <td><input type="number" step="0.01" id="horimetroInicial" value="0"></td>
+        <td><input type="number" step="0.01" id="horimetroFinal" value="0"></td>
+        <td class="output">
+          <span id="horasTrabalhadasDecimal">0.00</span> h (<span id="horasTrabalhadasFormatadas">0:00h</span>)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <button onclick="calcularDiferenca()">Calcular Horas Trabalhadas</button>
+
+  <!-- Rateio -->
+  <h2>Rateio de Horas por Carradas</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Setor</th>
+        <th>Carradas</th>
+        <th>Total em Toneladas</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Brita Cimento</td>
+        <td><input type="number" id="britaCimento" value="0" oninput="atualizarToneladas('britaCimento')"></td>
+        <td><input type="text" id="britaCimentoTon" value="0" readonly></td>
+      </tr>
+      <tr>
+        <td>Johnson</td>
+        <td><input type="number" id="johnson" value="0" oninput="atualizarToneladas('johnson')"></td>
+        <td><input type="text" id="johnsonTon" value="0" readonly></td>
+      </tr>
+      <tr>
+        <td>Brita Drywall</td>
+        <td><input type="number" id="britaDrywall" value="0" oninput="atualizarToneladas('britaDrywall')"></td>
+        <td><input type="text" id="britaDrywallTon" value="0" readonly></td>
+      </tr>
+      <tr>
+        <td>Calcinação</td>
+        <td><input type="number" id="calcinacao" value="0" oninput="atualizarToneladas('calcinacao')"></td>
+        <td><input type="text" id="calcinacaoTon" value="0" readonly></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <button onclick="calcularRateio()">Calcular Rateio</button>
+  <button onclick="gravarLancamento()">Gravar Lançamento</button>
+
+  <div class="result" id="resultadoRateio"></div>
+
+  <!-- Lançamentos Diários -->
+  <h2>Lançamentos Diários</h2>
+  <table id="tabelaLancamentos">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Horímetro Inicial</th>
+        <th>Horímetro Final</th>
+        <th>Total Horas</th>
+        <th>Brita Cimento (carradas/ton)</th>
+        <th>Johnson (carradas/ton)</th>
+        <th>Brita Drywall (carradas/ton)</th>
+        <th>Calcinação (carradas/ton)</th>
+        <th>Rateio</th>
+        <th>Ação</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let horasDecimais = 0;
+
+    function formatarHoras(horasDec) {
+      const horas = Math.floor(horasDec);
+      const minutos = Math.round((horasDec - horas) * 60);
+      return `${horas}:${minutos.toString().padStart(2, '0')}h`;
+    }
+
+    function calcularDiferenca() {
+      const inicial = parseFloat(document.getElementById('horimetroInicial').value) || 0;
+      const final = parseFloat(document.getElementById('horimetroFinal').value) || 0;
+      if (final < inicial) {
+        alert('O horímetro final não pode ser menor que o inicial.');
+        return;
+      }
+      horasDecimais = final - inicial;
+      document.getElementById('horasTrabalhadasDecimal').textContent = horasDecimais.toFixed(2);
+      document.getElementById('horasTrabalhadasFormatadas').textContent = formatarHoras(horasDecimais);
+    }
+
+    function atualizarToneladas(setor) {
+      const valor = parseFloat(document.getElementById(setor).value) || 0;
+      document.getElementById(setor + "Ton").value = (valor * 25).toFixed(2);
+    }
+
+    function calcularRateio() {
+      const setores = ['britaCimento', 'johnson', 'britaDrywall', 'calcinacao'];
+      let totalCarradas = 0;
+      const valores = {};
+      setores.forEach(setor => {
+        const valor = parseFloat(document.getElementById(setor).value) || 0;
+        valores[setor] = valor;
+        totalCarradas += valor;
+      });
+      if (horasDecimais === 0) {
+        alert('Por favor, calcule as horas no Horímetro antes de fazer o rateio.');
+        return;
+      }
+      if (totalCarradas === 0) {
+        alert('Informe pelo menos uma carrada para realizar o rateio.');
+        return;
+      }
+      let resultadoHTML = `<strong>Rateio das ${horasDecimais.toFixed(2)} horas (${formatarHoras(horasDecimais)}):</strong><br><br>`;
+      setores.forEach(setor => {
+        const horasSetor = (valores[setor] / totalCarradas) * horasDecimais;
+        const nomeExibicao = {
+          britaCimento: "Brita Cimento",
+          johnson: "Johnson",
+          britaDrywall: "Brita Drywall",
+          calcinacao: "Calcinação"
+        }[setor];
+        resultadoHTML += `${nomeExibicao}: <strong>${horasSetor.toFixed(2)} horas</strong> (${formatarHoras(horasSetor)})<br>`;
+      });
+      document.getElementById('resultadoRateio').innerHTML = resultadoHTML;
+    }
+
+    function gravarLancamento() {
+      const data = document.getElementById('dataLancamento').value;
+      const inicial = document.getElementById('horimetroInicial').value;
+      const final = document.getElementById('horimetroFinal').value;
+      const totalHoras = document.getElementById('horasTrabalhadasDecimal').textContent;
+      const britaCimento = document.getElementById('britaCimento').value;
+      const britaCimentoTon = document.getElementById('britaCimentoTon').value;
+      const johnson = document.getElementById('johnson').value;
+      const johnsonTon = document.getElementById('johnsonTon').value;
+      const britaDrywall = document.getElementById('britaDrywall').value;
+      const britaDrywallTon = document.getElementById('britaDrywallTon').value;
+      const calcinacao = document.getElementById('calcinacao').value;
+      const calcinacaoTon = document.getElementById('calcinacaoTon').value;
+      const rateio = document.getElementById('resultadoRateio').innerHTML;
+      const tabela = document.getElementById('tabelaLancamentos').querySelector('tbody');
+      const linha = document.createElement('tr');
+      linha.innerHTML = `
+        <td>${data}</td>
+        <td>${inicial}</td>
+        <td>${final}</td>
+        <td>${totalHoras}</td>
+        <td>${britaCimento} / ${britaCimentoTon}t</td>
+        <td>${johnson} / ${johnsonTon}t</td>
+        <td>${britaDrywall} / ${britaDrywallTon}t</td>
+        <td>${calcinacao} / ${calcinacaoTon}t</td>
+        <td>${rateio}</td>
+        <td><button class="btn-apagar" onclick="this.closest('tr').remove()">Apagar</button></td>
+      `;
+      tabela.appendChild(linha);
+      alert("Lançamento gravado com sucesso!");
+    }
+
+    // função auxiliar para extrair lançamentos desta página (retornará array de objetos)
+    function __extractLancamentosBoletim() {
+      const rows = Array.from(document.querySelectorAll('#tabelaLancamentos tbody tr'));
+      return rows.map(r => {
+        const cells = r.children;
+        return {
+          data: cells[0].textContent.trim(),
+          inicial: cells[1].textContent.trim(),
+          final: cells[2].textContent.trim(),
+          totalHoras: cells[3].textContent.trim(),
+          detalles: [cells[4].textContent.trim(), cells[5].textContent.trim(), cells[6].textContent.trim(), cells[7].textContent.trim()],
+          rateio: cells[8].innerHTML.trim()
+        };
+      });
+    }
+
+    // responde a mensagens do pai pedindo os lançamentos filtrados por data
+    window.addEventListener('message', (ev)=>{
+      try{
+        const msg = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+        if(msg && msg.cmd === 'getLancamentos' && msg.source === 'consolidado'){
+          const all = __extractLancamentosBoletim();
+          const filtered = msg.data ? all.filter(x=>x.data===msg.data) : all;
+          ev.source.postMessage(JSON.stringify({cmd:'lancamentos', origin:'britagem', data:msg.data, payload:filtered}), '*');
+        }
+      }catch(e){console.error(e)}
+    });
+  </script>
+
+</body>
+</html>
+    </template>
+
+    <!-- MOAGEM3.html -->
+    <template id="tpl-moagem3">
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle de Produção - Moagem 3</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+    h2 { text-align: center; }
+    .box { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    label { font-weight: bold; margin-right: 10px; }
+    input { padding: 5px; margin: 5px; width: 100px; }
+    button { margin-top: 15px; padding: 10px 20px; border: none; background: #007bff; color: white; cursor: pointer; border-radius: 5px; }
+    button:hover { background: #0056b3; }
+    .result { margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; font-size: 14px; }
+    th, td { padding: 8px; border: 1px solid #ccc; text-align: center; }
+    th { background: #007bff; color: white; }
+    .btn-apagar { background: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; }
+    .btn-apagar:hover { background: #a71d2a; }
+    .linha-input { display: flex; align-items: center; margin-top: 10px; }
+    .toneladas { margin-left: 10px; font-weight: bold; color: #333; }
+  </style>
+</head>
+<body>
+
+  <h2>Controle de Produção - Moagem 3</h2>
+
+  <!-- Horímetro e Produção -->
+  <div class="box">
+    <h3>Horímetro e Produção</h3>
+
+    <label for="dataLancamento">Data do Lançamento:</label>
+    <input type="date" id="dataLancamento">
+
+    <div class="linha-input">
+      <label for="horimetroInicial">Horímetro Inicial:</label>
+      <input type="number" id="horimetroInicial" value="0" min="0" step="0.01">
+    </div>
+
+    <div class="linha-input">
+      <label for="horimetroFinal">Horímetro Final:</label>
+      <input type="number" id="horimetroFinal" value="0" min="0" step="0.01">
+    </div>
+
+    <div class="linha-input">
+      <label for="retro310l">Conchas Retro 310L:</label>
+      <input type="number" id="retro310l" value="0" min="0" oninput="calcular()">
+      <span class="toneladas" id="resultado310l">0.00 t</span>
+    </div>
+
+    <div class="linha-input">
+      <label for="conchas624k">Conchas 624K:</label>
+      <input type="number" id="conchas624k" value="0" min="0" oninput="calcular()">
+      <span class="toneladas" id="resultado624k">0.00 t</span>
+    </div>
+
+    <div class="linha-input">
+      <label for="conchas644k">Conchas 644K:</label>
+      <input type="number" id="conchas644k" value="0" min="0" oninput="calcular()">
+      <span class="toneladas" id="resultado644k">0.00 t</span>
+    </div>
+
+    <button onclick="calcular()">Calcular</button>
+    <button onclick="lancarProducao()">Lançar Produção</button>
+
+    <div class="result" id="resultadoResumo">
+      Horas Trabalhadas: 0.00 (0:00h) <br>
+      Produção Total: 0.00 toneladas
+    </div>
+  </div>
+
+  <!-- Lançamentos Diários -->
+  <div class="box">
+    <h3>Lançamentos Diários</h3>
+    <table id="tabelaLancamentos">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Horímetro Inicial</th>
+          <th>Horímetro Final</th>
+          <th>Horas Trabalhadas</th>
+          <th>Retro 310L (t)</th>
+          <th>624K (t)</th>
+          <th>644K (t)</th>
+          <th>Total Produzido (t)</th>
+          <th>Ação</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    let horasDecimais = 0;
+    let horasFormatadas = "0:00";
+    let toneladasTotais = 0;
+    let ton310l = 0, ton624k = 0, ton644k = 0;
+
+    function formatarHoras(horasDec) {
+      const horas = Math.floor(horasDec);
+      const minutos = Math.round((horasDec - horas) * 60);
+      return `${horas}:${minutos.toString().padStart(2, '0')}`;
+    }
+
+    function calcular() {
+      // Horímetro
+      const hInicial = parseFloat(document.getElementById('horimetroInicial').value) || 0;
+      const hFinal = parseFloat(document.getElementById('horimetroFinal').value) || 0;
+
+      if (hFinal < hInicial) {
+        alert("O horímetro final não pode ser menor que o inicial.");
+        return;
+      }
+
+      horasDecimais = hFinal - hInicial;
+      horasFormatadas = formatarHoras(horasDecimais);
+
+      // Produção
+      const qtd310l = parseFloat(document.getElementById('retro310l').value) || 0;
+      const qtd624k = parseFloat(document.getElementById('conchas624k').value) || 0;
+      const qtd644k = parseFloat(document.getElementById('conchas644k').value) || 0;
+
+      ton310l = qtd310l * 1.093;
+      ton624k = qtd624k * 4;
+      ton644k = qtd644k * 4.5;
+
+      toneladasTotais = ton310l + ton624k + ton644k;
+
+      // Atualiza valores individuais
+      document.getElementById('resultado310l').textContent = ton310l.toFixed(2) + " t";
+      document.getElementById('resultado624k').textContent = ton624k.toFixed(2) + " t";
+      document.getElementById('resultado644k').textContent = ton644k.toFixed(2) + " t";
+
+      // Atualiza resumo
+      document.getElementById("resultadoResumo").innerHTML =
+        `Horas Trabalhadas: ${horasDecimais.toFixed(2)} (${horasFormatadas}h) <br>
+         Produção Total: ${toneladasTotais.toFixed(2)} toneladas`;
+    }
+
+    function lancarProducao() {
+      if (horasDecimais === 0 && toneladasTotais === 0) {
+        alert("Calcule os valores antes de lançar.");
+        return;
+      }
+
+      const tabela = document.getElementById("tabelaLancamentos").querySelector("tbody");
+      const novaLinha = tabela.insertRow();
+
+      const data = document.getElementById("dataLancamento").value || "Não Informado";
+      const hInicial = document.getElementById("horimetroInicial").value;
+      const hFinal = document.getElementById("horimetroFinal").value;
+
+      novaLinha.innerHTML = `
+        <td>${data}</td>
+        <td>${hInicial}</td>
+        <td>${hFinal}</td>
+        <td>${horasDecimais.toFixed(2)} (${horasFormatadas})</td>
+        <td>${ton310l.toFixed(2)}</td>
+        <td>${ton624k.toFixed(2)}</td>
+        <td>${ton644k.toFixed(2)}</td>
+        <td>${toneladasTotais.toFixed(2)}</td>
+        <td><button class="btn-apagar" onclick="apagarLinha(this)">Apagar</button></td>
+      `;
+    }
+
+    function apagarLinha(botao) {
+      const linha = botao.parentNode.parentNode;
+      linha.parentNode.removeChild(linha);
+    }
+
+    // extrator simples
+    function __extractLancamentosMoagem3(){
+      return Array.from(document.querySelectorAll('#tabelaLancamentos tbody tr')).map(r=>{
+        const c=r.children;return {data:c[0].textContent.trim(), inicial:c[1].textContent.trim(), final:c[2].textContent.trim(), horas:c[3].textContent.trim(), 310:c[4].textContent.trim(),k624:c[5].textContent.trim(),k644:c[6].textContent.trim(), total:c[7].textContent.trim()}
+      });
+    }
+    window.addEventListener('message',(ev)=>{try{const msg=typeof ev.data==='string'?JSON.parse(ev.data):ev.data; if(msg&&msg.cmd==='getLancamentos'){const all=__extractLancamentosMoagem3(); const filt=msg.data?all.filter(x=>x.data===msg.data):all; ev.source.postMessage(JSON.stringify({cmd:'lancamentos', origin:'moagem3', data:msg.data, payload:filt}),'*')} }catch(e){console.error(e)}})
+  </script>
+
+</body>
+</html>
+    </template>
+
+    <!-- MOAGEM 3 TON template CORRIGIDO -->
+    <template id="tpl-moagem_3ton">
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Produção - Horímetro e Toneladas</title>
+<style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+    h2 { text-align: center; }
+    .box { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    label { display: block; margin-top: 10px; font-weight: bold; }
+    input, select { padding: 5px; margin-top: 5px; width: 150px; }
+    button { margin-top: 15px; padding: 10px 20px; border: none; background: #007bff; color: white; cursor: pointer; border-radius: 5px; }
+    button:hover { background: #0056b3; }
+    .result { margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }
+    th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
+    th { background: #007bff; color: white; }
+    .btn-apagar { background: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; }
+    .btn-apagar:hover { background: #a71d2a; }
+</style>
+</head>
+<body>
+
+<h2>Controle de Produção - Moagem 1 e 2 - 3 Toneladas Por Hora</h2>
+
+<!-- Horímetro -->
+<div class="box">
+    <h3>Calcular Horas Trabalhadas (Decimal)</h3>
+
+    <label>Horímetro Inicial:
+        <input type="number" step="0.01" id="horimetroInicial">
+    </label>
+
+    <label>Horímetro Final:
+        <input type="number" step="0.01" id="horimetroFinal">
+    </label>
+
+    <button onclick="calcularHoras()">Calcular Horas Trabalhadas</button>
+
+    <div class="result">
+        <strong>Total de Horas Trabalhadas:</strong><br>
+        <span id="resultadoDecimal">0.00</span> horas 
+        (<span id="resultadoFormatado">0:00h</span>)
+    </div>
+</div>
+
+<!-- Produção -->
+<div class="box">
+    <h3>Produção em Toneladas</h3>
+
+    <label>Selecione a Moagem:
+        <select id="moagem">
+            <option value="MOAGEM 1">MOAGEM 1</option>
+            <option value="MOAGEM 2">MOAGEM 2</option>
+        </select>
+    </label>
+
+    <label>Data do Lançamento:
+        <input type="date" id="dataLancamento">
+    </label>
+
+    <div>
+        <button onclick="calcularToneladas()">Calcular Produção</button>
+        <button onclick="lancarProducao()">Lançar Produção</button>
+    </div>
+
+    <div class="result">
+        <strong>Produção Total:</strong><br>
+        <span id="resultadoToneladas">0.00</span> toneladas
+    </div>
+</div>
+
+<!-- Lançamentos Diários -->
+<div class="box">
+    <h3>Lançamentos Diários</h3>
+    <table id="tabelaLancamentos">
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Moagem</th>
+                <th>Horímetro Inicial</th>
+                <th>Horímetro Final</th>
+                <th>Horas Trabalhadas</th>
+                <th>Toneladas Produzidas</th>
+                <th>Ação</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script>
+    let horasDecimais = 0;
+    let horasFormatadas = "0:00";
+    let toneladas = 0;
+
+    function formatarHoras(horasDec) {
+        const horas = Math.floor(horasDec);
+        const minutos = Math.round((horasDec - horas) * 60);
+        const minutosFormatados = minutos.toString().padStart(2, '0');
+        return `${horas}:${minutosFormatados}`;
+    }
+
+    function converterParaFormatoMultiplicacao(horasDec) {
+        const horas = Math.floor(horasDec);
+        const minutos = (horasDec - horas) * 60;
+        // Formato para multiplicação: horas.minutos (ex: 6.30 para 6:30h)
+        return parseFloat(horas + '.' + Math.round(minutos).toString().padStart(2, '0'));
+    }
+
+    function calcularHoras() {
+        const inicial = parseFloat(document.getElementById('horimetroInicial').value) || 0;
+        const final = parseFloat(document.getElementById('horimetroFinal').value) || 0;
+
+        if (final < inicial) {
+            alert('O horímetro final não pode ser menor que o inicial.');
+            return;
+        }
+
+        horasDecimais = final - inicial;
+        horasFormatadas = formatarHoras(horasDecimais);
+
+        document.getElementById('resultadoDecimal').textContent = horasDecimais.toFixed(2);
+        document.getElementById('resultadoFormatado').textContent = horasFormatadas;
+    }
+
+    function calcularToneladas() {
+        if (horasDecimais === 0) {
+            alert('Por favor, calcule as horas no Horímetro antes de calcular a produção.');
+            return;
+        }
+
+        // Converter para formato de multiplicação (horas.minutos)
+        const horasParaMultiplicar = converterParaFormatoMultiplicacao(horasDecimais);
+        
+        // Multiplicar por 3 toneladas (regra de cálculo)
+        toneladas = horasParaMultiplicar * 3;
+        
+        document.getElementById('resultadoToneladas').textContent = toneladas.toFixed(2);
+    }
+
+    function lancarProducao() {
+        if (toneladas === 0) {
+            alert('Calcule a produção antes de lançar.');
+            return;
+        }
+
+        const tabela = document.getElementById('tabelaLancamentos').querySelector('tbody');
+        const novaLinha = tabela.insertRow();
+
+        const data = document.getElementById('dataLancamento').value || "Não Informado";
+        const moagem = document.getElementById('moagem').value;
+        const inicial = document.getElementById('horimetroInicial').value;
+        const final = document.getElementById('horimetroFinal').value;
+
+        novaLinha.innerHTML = `
+            <td>${data}</td>
+            <td>${moagem}</td>
+            <td>${inicial}</td>
+            <td>${final}</td>
+            <td>${horasDecimais.toFixed(2)} (${horasFormatadas})</td>
+            <td>${toneladas.toFixed(2)}</td>
+            <td><button class="btn-apagar" onclick="apagarLinha(this)">Apagar</button></td>
+        `;
+    }
+
+    function apagarLinha(botao) {
+        const linha = botao.parentNode.parentNode;
+        linha.parentNode.removeChild(linha);
+    }
+
+    // extrator
+    function __extractLancamentosMoagem3ton(){
+      return Array.from(document.querySelectorAll('#tabelaLancamentos tbody tr')).map(r=>{const c=r.children; return {data:c[0].textContent.trim(), moagem:c[1].textContent.trim(), inicial:c[2].textContent.trim(), final:c[3].textContent.trim(), horas:c[4].textContent.trim(), toneladas:c[5].textContent.trim()}})
+    }
+    window.addEventListener('message',(ev)=>{try{const msg=typeof ev.data==='string'?JSON.parse(ev.data):ev.data; if(msg&&msg.cmd==='getLancamentos'){const all=__extractLancamentosMoagem3ton(); const filt=msg.data?all.filter(x=>x.data===msg.data):all; ev.source.postMessage(JSON.stringify({cmd:'lancamentos', origin:'moagem_3ton', data:msg.data, payload:filt}),'*')} }catch(e){console.error(e)}})
+</script>
+
+</body>
+</html>
+    </template>
+
+    <!-- MOAGEM 6 TON template CORRIGIDO -->
+    <template id="tpl-moagem_6ton">
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Produção - Horímetro e Toneladas</title>
+<style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+    h2 { text-align: center; }
+    .box { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    label { display: block; margin-top: 10px; font-weight: bold; }
+    input, select { padding: 5px; margin-top: 5px; width: 150px; }
+    button { margin-top: 15px; padding: 10px 20px; border: none; background: #007bff; color: white; cursor: pointer; border-radius: 5px; }
+    button:hover { background: #0056b3; }
+    .result { margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }
+    th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
+    th { background: #007bff; color: white; }
+    .btn-apagar { background: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; }
+    .btn-apagar:hover { background: #a71d2a; }
+</style>
+</head>
+<body>
+
+<h2>Controle de Produção - Moagem 1 e 2 - 6 Toneladas Por Hora</h2>
+
+<!-- Horímetro -->
+<div class="box">
+    <h3>Calcular Horas Trabalhadas (Decimal)</h3>
+
+    <label>Horímetro Inicial:
+        <input type="number" step="0.01" id="horimetroInicial">
+    </label>
+
+    <label>Horímetro Final:
+        <input type="number" step="0.01" id="horimetroFinal">
+    </label>
+
+    <button onclick="calcularHoras()">Calcular Horas Trabalhadas</button>
+
+    <div class="result">
+        <strong>Total de Horas Trabalhadas:</strong><br>
+        <span id="resultadoDecimal">0.00</span> horas 
+        (<span id="resultadoFormatado">0:00h</span>)
+    </div>
+</div>
+
+<!-- Produção -->
+<div class="box">
+    <h3>Produção em Toneladas</h3>
+
+    <label>Selecione a Moagem:
+        <select id="moagem">
+            <option value="MOAGEM 1">MOAGEM 1</option>
+            <option value="MOAGEM 2">MOAGEM 2</option>
+        </select>
+    </label>
+
+    <label>Data do Lançamento:
+        <input type="date" id="dataLancamento">
+    </label>
+
+    <div>
+        <button onclick="calcularToneladas()">Calcular Produção</button>
+        <button onclick="lancarProducao()">Lançar Produção</button>
+    </div>
+
+    <div class="result">
+        <strong>Produção Total:</strong><br>
+        <span id="resultadoToneladas">0.00</span> toneladas
+    </div>
+</div>
+
+<!-- Lançamentos Diários -->
+<div class="box">
+    <h3>Lançamentos Diários</h3>
+    <table id="tabelaLancamentos">
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Moagem</th>
+                <th>Horímetro Inicial</th>
+                <th>Horímetro Final</th>
+                <th>Horas Trabalhadas</th>
+                <th>Toneladas Produzidas</th>
+                <th>Ação</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script>
+    let horasDecimais = 0;
+    let horasFormatadas = "0:00";
+    let toneladas = 0;
+
+    function formatarHoras(horasDec) {
+        const horas = Math.floor(horasDec);
+        const minutos = Math.round((horasDec - horas) * 60);
+        const minutosFormatados = minutos.toString().padStart(2, '0');
+        return `${horas}:${minutosFormatados}`;
+    }
+
+    function converterParaFormatoMultiplicacao(horasDec) {
+        const horas = Math.floor(horasDec);
+        const minutos = (horasDec - horas) * 60;
+        // Formato para multiplicação: horas.minutos (ex: 6.30 para 6:30h)
+        return parseFloat(horas + '.' + Math.round(minutos).toString().padStart(2, '0'));
+    }
+
+    function calcularHoras() {
+        const inicial = parseFloat(document.getElementById('horimetroInicial').value) || 0;
+        const final = parseFloat(document.getElementById('horimetroFinal').value) || 0;
+
+        if (final < inicial) {
+            alert('O horímetro final não pode ser menor que o inicial.');
+            return;
+        }
+
+        horasDecimais = final - inicial;
+        horasFormatadas = formatarHoras(horasDecimais);
+
+        document.getElementById('resultadoDecimal').textContent = horasDecimais.toFixed(2);
+        document.getElementById('resultadoFormatado').textContent = horasFormatadas;
+    }
+
+    function calcularToneladas() {
+        if (horasDecimais === 0) {
+            alert('Por favor, calcule as horas no Horímetro antes de calcular a produção.');
+            return;
+        }
+
+        // Converter para formato de multiplicação (horas.minutos)
+        const horasParaMultiplicar = converterParaFormatoMultiplicacao(horasDecimais);
+        
+        // Multiplicar por 6 toneladas (regra de cálculo)
+        toneladas = horasParaMultiplicar * 6;
+        
+        document.getElementById('resultadoToneladas').textContent = toneladas.toFixed(2);
+    }
+
+    function lancarProducao() {
+        if (toneladas === 0) {
+            alert('Calcule a produção antes de lançar.');
+            return;
+        }
+
+        const tabela = document.getElementById('tabelaLancamentos').querySelector('tbody');
+        const novaLinha = tabela.insertRow();
+
+        const data = document.getElementById('dataLancamento').value || "Não Informado";
+        const moagem = document.getElementById('moagem').value;
+        const inicial = document.getElementById('horimetroInicial').value;
+        const final = document.getElementById('horimetroFinal').value;
+
+        novaLinha.innerHTML = `
+            <td>${data}</td>
+            <td>${moagem}</td>
+            <td>${inicial}</td>
+            <td>${final}</td>
+            <td>${horasDecimais.toFixed(2)} (${horasFormatadas})</td>
+            <td>${toneladas.toFixed(2)}</td>
+            <td><button class="btn-apagar" onclick="apagarLinha(this)">Apagar</button></td>
+        `;
+    }
+
+    function apagarLinha(botao) {
+        const linha = botao.parentNode.parentNode;
+        linha.parentNode.removeChild(linha);
+    }
+
+    // extrator
+    function __extractLancamentosMoagem6ton(){
+      return Array.from(document.querySelectorAll('#tabelaLancamentos tbody tr')).map(r=>{const c=r.children; return {data:c[0].textContent.trim(), moagem:c[1].textContent.trim(), inicial:c[2].textContent.trim(), final:c[3].textContent.trim(), horas:c[4].textContent.trim(), toneladas:c[5].textContent.trim()}})
+    }
+    window.addEventListener('message',(ev)=>{try{const msg=typeof ev.data==='string'?JSON.parse(ev.data):ev.data; if(msg&&msg.cmd==='getLancamentos'){const all=__extractLancamentosMoagem6ton(); const filt=msg.data?all.filter(x=>x.data===msg.data):all; ev.source.postMessage(JSON.stringify({cmd:'lancamentos', origin:'moagem_6ton', data:msg.data, payload:filt}),'*')} }catch(e){console.error(e)}})
+</script>
+
+</body>
+</html>
+    </template>
+
+    <!-- ENSACADO.html -->
+    <template id="tpl-ensacado">
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Ensacado de Gesso agrícola de 50kg | 25kg e Big Bag</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+    h2 { background: #333; color: #fff; padding: 10px; border-radius: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+    th { background: #007bff; color: white; }
+    input[type="number"], input[type="date"] { width: 100px; padding: 5px; text-align: center; }
+    .output { background-color: #e9ecef; font-weight: bold; }
+    button { margin-top: 10px; padding: 8px 16px; border: none; background: #007bff; color: white; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .btn-apagar { background: #dc3545; }
+    .btn-apagar:hover { background: #a71d2a; }
+  </style>
+</head>
+<body>
+
+  <!-- 25kg -->
+  <h2>Controle de Ensacamento - Sacos de 25kg</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Palhetes em Estoque (Dia Anterior)</th>
+        <th>Palhetes Ensacados Hoje</th>
+        <th>Palhetes Embarcados</th>
+        <th>Estoque Final (Palhetes)</th>
+        <th>Total Sacos Produzidos (25kg)</th>
+        <th>Total Sacos Embarcados (25kg)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><input type="number" id="estoque25" value="0"></td>
+        <td><input type="number" id="produzido25" value="0"></td>
+        <td><input type="number" id="embarcado25" value="0"></td>
+        <td class="output" id="final25">0</td>
+        <td class="output" id="sacosProduzidos25">0</td>
+        <td class="output" id="sacosEmbarcados25">0</td>
+      </tr>
+    </tbody>
+  </table>
+  <label>Data da Produção: <input type="date" id="data25"></label>
+  <button onclick="lancarProducao('25')">Lançar Produção</button>
+
+  <!-- 50kg -->
+  <h2>Controle de Ensacamento - Sacos de 50kg</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Palhetes em Estoque (Dia Anterior)</th>
+        <th>Palhetes Ensacados Hoje</th>
+        <th>Palhetes Embarcados</th>
+        <th>Estoque Final (Palhetes)</th>
+        <th>Total Sacos Produzidos (50kg)</th>
+        <th>Total Sacos Embarcados (50kg)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><input type="number" id="estoque50" value="0"></td>
+        <td><input type="number" id="produzido50" value="0"></td>
+        <td><input type="number" id="embarcado50" value="0"></td>
+        <td class="output" id="final50">0</td>
+        <td class="output" id="sacosProduzidos50">0</td>
+        <td class="output" id="sacosEmbarcados50">0</td>
+      </tr>
+    </tbody>
+  </table>
+  <label>Data da Produção: <input type="date" id="data50"></label>
+  <button onclick="lancarProducao('50')">Lançar Produção</button>
+
+  <!-- Big Bag -->
+  <h2>Controle de Ensacamento - Big Bag 1 Tonelada</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Big Bag em Estoque (Dia Anterior)</th>
+        <th>Big Bag Ensacados Hoje</th>
+        <th>Big Bag Embarcados</th>
+        <th>Estoque Final (Big Bag)</th>
+        <th>Total Big Bags Produzidos (t)</th>
+        <th>Total Big Bags Embarcados (t)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><input type="number" id="estoqueBB" value="0"></td>
+        <td><input type="number" id="produzidoBB" value="0"></td>
+        <td><input type="number" id="embarcadoBB" value="0"></td>
+        <td class="output" id="finalBB">0</td>
+        <td class="output" id="produzidoTonBB">0</td>
+        <td class="output" id="embarcadoTonBB">0</td>
+      </tr>
+    </tbody>
+  </table>
+  <label>Data da Produção: <input type="date" id="dataBB"></label>
+  <button onclick="lancarProducao('BB')">Lançar Produção</button>
+
+  <!-- Tabela Consolidada -->
+  <h2>Lançamentos Diários - Consolidado</h2>
+  <table id="tabelaLancamentos">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Tipo</th>
+        <th>Estoque Anterior</th>
+        <th>Ensacados Hoje</th>
+        <th>Embarcados</th>
+        <th>Estoque Final</th>
+        <th>Produzidos</th>
+        <th>Embarcados</th>
+        <th>Ação</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+    </table>
+
+  <script>
+    const inputs = document.querySelectorAll('input[type="number"]');
+
+    function calcular() {
+      // 25kg
+      const estoque25 = +document.getElementById('estoque25').value || 0;
+      const produzido25 = +document.getElementById('produzido25').value || 0;
+      const embarcado25 = +document.getElementById('embarcado25').value || 0;
+      document.getElementById('final25').textContent = estoque25 + produzido25 - embarcado25;
+      document.getElementById('sacosProduzidos25').textContent = produzido25 * 45;
+      document.getElementById('sacosEmbarcados25').textContent = embarcado25 * 45;
+
+      // 50kg
+      const estoque50 = +document.getElementById('estoque50').value || 0;
+      const produzido50 = +document.getElementById('produzido50').value || 0;
+      const embarcado50 = +document.getElementById('embarcado50').value || 0;
+      document.getElementById('final50').textContent = estoque50 + produzido50 - embarcado50;
+      document.getElementById('sacosProduzidos50').textContent = produzido50 * 30;
+      document.getElementById('sacosEmbarcados50').textContent = embarcado50 * 30;
+
+      // Big Bag
+      const estoqueBB = +document.getElementById('estoqueBB').value || 0;
+      const produzidoBB = +document.getElementById('produzidoBB').value || 0;
+      const embarcadoBB = +document.getElementById('embarcadoBB').value || 0;
+      document.getElementById('finalBB').textContent = estoqueBB + produzidoBB - embarcadoBB;
+      document.getElementById('produzidoTonBB').textContent = produzidoBB;
+      document.getElementById('embarcadoTonBB').textContent = embarcadoBB;
+    }
+
+    function lancarProducao(tipo) {
+      let data, estoque, produzido, embarcado, final, produzidoTotal, embarcadoTotal, tipoLabel;
+
+      if (tipo === '25') {
+        data = document.getElementById('data25').value || "Não Informado";
+        estoque = document.getElementById('estoque25').value;
+        produzido = document.getElementById('produzido25').value;
+        embarcado = document.getElementById('embarcado25').value;
+        final = document.getElementById('final25').textContent;
+        produzidoTotal = document.getElementById('sacosProduzidos25').textContent;
+        embarcadoTotal = document.getElementById('sacosEmbarcados25').textContent;
+        tipoLabel = "25kg";
+      } else if (tipo === '50') {
+        data = document.getElementById('data50').value || "Não Informado";
+        estoque = document.getElementById('estoque50').value;
+        produzido = document.getElementById('produzido50').value;
+        embarcado = document.getElementById('embarcado50').value;
+        final = document.getElementById('final50').textContent;
+        produzidoTotal = document.getElementById('sacosProduzidos50').textContent;
+        embarcadoTotal = document.getElementById('sacosEmbarcados50').textContent;
+        tipoLabel = "50kg";
+      } else {
+        data = document.getElementById('dataBB').value || "Não Informado";
+        estoque = document.getElementById('estoqueBB').value;
+        produzido = document.getElementById('produzidoBB').value;
+        embarcado = document.getElementById('embarcadoBB').value;
+        final = document.getElementById('finalBB').textContent;
+        produzidoTotal = document.getElementById('produzidoTonBB').textContent;
+        embarcadoTotal = document.getElementById('embarcadoTonBB').textContent;
+        tipoLabel = "Big Bag";
+      }
+
+      const tabela = document.getElementById("tabelaLancamentos").querySelector("tbody");
+      const novaLinha = tabela.insertRow();
+
+      novaLinha.innerHTML = `
+        <td>${data}</td>
+        <td>${tipoLabel}</td>
+        <td>${estoque}</td>
+        <td>${produzido}</td>
+        <td>${embarcado}</td>
+        <td>${final}</td>
+        <td>${produzidoTotal}</td>
+        <td>${embarcadoTotal}</td>
+        <td><button class="btn-apagar" onclick="apagarLinha(this)">Apagar</button></td>
+      `;
+    }
+
+    function apagarLinha(botao) {
+      botao.closest('tr').remove();
+    }
+
+    inputs.forEach(input => input.addEventListener('input', calcular));
+    calcular();
+
+    // extrator
+    function __extractLancamentosEnsacado(){
+      return Array.from(document.querySelectorAll('#tabelaLancamentos tbody tr')).map(r=>{const c=r.children; return {data:c[0].textContent.trim(), tipo:c[1].textContent.trim(), estoqueAnterior:c[2].textContent.trim(), ensacados:c[3].textContent.trim(), embarcados:c[4].textContent.trim(), estoqueFinal:c[5].textContent.trim(), produzidos:c[6].textContent.trim(), embarcadosTotal:c[7].textContent.trim()}})
+    }
+    window.addEventListener('message',(ev)=>{try{const msg=typeof ev.data==='string'?JSON.parse(ev.data):ev.data; if(msg&&msg.cmd==='getLancamentos'){const all=__extractLancamentosEnsacado(); const filt=msg.data?all.filter(x=>x.data===msg.data):all; ev.source.postMessage(JSON.stringify({cmd:'lancamentos', origin:'ensacado', data:msg.data, payload:filt}),'*')} }catch(e){console.error(e)}})
+  </script>
+
+</body>
+</html>
+    </template>
+
+    <!-- fim dos templates -->
+  </main>
+
+  <!-- bibliotecas para gerar PDF via html2pdf (usa html2canvas + jsPDF). CDN usado para facilitar o download automático em browsers. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <script>
+    // Inicializa iframes a partir dos templates — não alteramos o conteúdo original; apenas injetamos em srcdoc
+    function loadIframeFromTemplate(iframeId, tplId){
+      const tpl = document.getElementById(tplId);
+      const iframe = document.getElementById(iframeId);
+      iframe.srcdoc = tpl.innerHTML;
+    }
+
+    loadIframeFromTemplate('iframe-britagem','tpl-britagem');
+    loadIframeFromTemplate('iframe-moagem3','tpl-moagem3');
+    loadIframeFromTemplate('iframe-moagem_3ton','tpl-moagem_3ton');
+    loadIframeFromTemplate('iframe-moagem_6ton','tpl-moagem_6ton');
+    loadIframeFromTemplate('iframe-ensacado','tpl-ensacado');
+
+    // Navegação entre telas
+    const nav = document.getElementById('nav');
+    const screens = document.querySelectorAll('.screen');
+    function showScreen(name){
+      screens.forEach(s=>s.style.display='none');
+      document.querySelectorAll('[data-screen]').forEach(b=>b.removeAttribute('aria-current'));
+      if(name==='britagem') document.getElementById('screen-britagem').style.display='block';
+      if(name==='moagem3') document.getElementById('screen-moagem3').style.display='block';
+      if(name==='moagem_3ton') document.getElementById('screen-moagem_3ton').style.display='block';
+      if(name==='moagem_6ton') document.getElementById('screen-moagem_6ton').style.display='block';
+      if(name==='ensacado') document.getElementById('screen-ensacado').style.display='block';
+      if(name==='consolidado') document.getElementById('screen-consolidado').style.display='block';
+      const btn = document.querySelector(`nav button[data-screen="${name}"]`);
+      if(btn) btn.setAttribute('aria-current','true');
+    }
+    nav.addEventListener('click', e=>{ if(e.target.matches('button[data-screen]')) showScreen(e.target.dataset.screen); });
+    // mostra a primeira tela por padrão
+    showScreen('britagem');
+
+    // função que pergunta para cada iframe seus lançamentos — usa postMessage e coleta respostas
+    function solicitarLancamentosParaData(dataIso){
+      const iframes = [
+        {id:'iframe-britagem', origin:'britagem'},
+        {id:'iframe-moagem3', origin:'moagem3'},
+        {id:'iframe-moagem_3ton', origin:'moagem_3ton'},
+        {id:'iframe-moagem_6ton', origin:'moagem_6ton'},
+        {id:'iframe-ensacado', origin:'ensacado'}
+      ];
+      return new Promise((resolve)=>{
+        const results = {};
+        let remaining = iframes.length;
+        function onMessage(ev){
+          try{
+            const msg = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+            if(msg && msg.cmd === 'lancamentos'){
+              results[msg.origin] = msg.payload || [];
+              remaining--;
+              if(remaining<=0){ window.removeEventListener('message', onMessage); resolve(results); }
+            }
+          }catch(e){ console.error(e); }
+        }
+        window.addEventListener('message', onMessage);
+        // envia a solicitação para cada iframe
+        iframes.forEach(f=>{
+          const iframe = document.getElementById(f.id);
+          try{
+            iframe.contentWindow.postMessage(JSON.stringify({cmd:'getLancamentos', source:'consolidado', data:dataIso}), '*');
+          }catch(e){
+            // se não conseguiu postar, marca vazio e decrementa
+            results[f.origin]=[]; remaining--; if(remaining<=0){window.removeEventListener('message', onMessage); resolve(results);} }
+        });
+        // fallback timeout 2s
+        setTimeout(()=>{ if(window){ window.removeEventListener('message', onMessage); resolve(results); } }, 3000);
+      });
+    }
+
+    // Funções para formatar os dados de cada módulo para o relatório
+    function formatarDadosBritagem(dados) {
+      if (!dados || dados.length === 0) return '';
+      
+      let html = '<table><thead><tr><th>Data</th><th>Horímetro Inicial</th><th>Horímetro Final</th><th>Total Horas</th>';
+      html += '<th>Brita Cimento</th><th>Johnson</th><th>Brita Drywall</th><th>Calcinação</th></tr></thead><tbody>';
+      
+      dados.forEach(item => {
+        html += `<tr>
+          <td>${item.data}</td>
+          <td>${item.inicial}</td>
+          <td>${item.final}</td>
+          <td>${item.totalHoras}</td>
+          <td>${item.detalles[0] || '0'}</td>
+          <td>${item.detalles[1] || '0'}</td>
+          <td>${item.detalles[2] || '0'}</td>
+          <td>${item.detalles[3] || '0'}</td>
+        </tr>`;
+      });
+      
+      html += '</tbody></table>';
+      return html;
+    }
+
+    function formatarDadosMoagem3(dados) {
+      if (!dados || dados.length === 0) return '';
+      
+      let html = '<table><thead><tr><th>Data</th><th>Horímetro Inicial</th><th>Horímetro Final</th><th>Horas Trabalhadas</th>';
+      html += '<th>Retro 310L (t)</th><th>624K (t)</th><th>644K (t)</th><th>Total (t)</th></tr></thead><tbody>';
+      
+      dados.forEach(item => {
+        html += `<tr>
+          <td>${item.data}</td>
+          <td>${item.inicial}</td>
+          <td>${item.final}</td>
+          <td>${item.horas}</td>
+          <td>${item['310'] || '0'}</td>
+          <td>${item.k624 || '0'}</td>
+          <td>${item.k644 || '0'}</td>
+          <td>${item.total || '0'}</td>
+        </tr>`;
+      });
+      
+      html += '</tbody></table>';
+      return html;
+    }
+
+    function formatarDadosMoagem3ton(dados) {
+      if (!dados || dados.length === 0) return '';
+      
+      let html = '<table><thead><tr><th>Data</th><th>Moagem</th><th>Horímetro Inicial</th><th>Horímetro Final</th>';
+      html += '<th>Horas Trabalhadas</th><th>Toneladas Produzidas</th></tr></thead><tbody>';
+      
+      dados.forEach(item => {
+        html += `<tr>
+          <td>${item.data}</td>
+          <td>${item.moagem}</td>
+          <td>${item.inicial}</td>
+          <td>${item.final}</td>
+          <td>${item.horas}</td>
+          <td>${item.toneladas}</td>
+        </tr>`;
+      });
+      
+      html += '</tbody></table>';
+      return html;
+    }
+
+    function formatarDadosMoagem6ton(dados) {
+      if (!dados || dados.length === 0) return '';
+      
+      let html = '<table><thead><tr><th>Data</th><th>Moagem</th><th>Horímetro Inicial</th><th>Horímetro Final</th>';
+      html += '<th>Horas Trabalhadas</th><th>Toneladas Produzidas</th></tr></thead><tbody>';
+      
+      dados.forEach(item => {
+        html += `<tr>
+          <td>${item.data}</td>
+          <td>${item.moagem}</td>
+          <td>${item.inicial}</td>
+          <td>${item.final}</td>
+          <td>${item.horas}</td>
+          <td>${item.toneladas}</td>
+        </tr>`;
+      });
+      
+      html += '</tbody></table>';
+      return html;
+    }
+
+    function formatarDadosEnsacado(dados) {
+      if (!dados || dados.length === 0) return '';
+      
+      let html = '<table><thead><tr><th>Data</th><th>Tipo</th><th>Estoque Anterior</th><th>Ensacados Hoje</th>';
+      html += '<th>Embarcados</th><th>Estoque Final</th><th>Produzidos</th><th>Embarcados Total</th></tr></thead><tbody>';
+      
+      dados.forEach(item => {
+        html += `<tr>
+          <td>${item.data}</td>
+          <td>${item.tipo}</td>
+          <td>${item.estoqueAnterior}</td>
+          <td>${item.ensacados}</td>
+          <td>${item.embarcados}</td>
+          <td>${item.estoqueFinal}</td>
+          <td>${item.produzidos}</td>
+          <td>${item.embarcadosTotal}</td>
+        </tr>`;
+      });
+      
+      html += '</tbody></table>';
+      return html;
+    }
+
+    // monta o HTML consolidado e exibe na tela
+    async function buscarLancamentos(){
+      const data = document.getElementById('dataConsolidar').value;
+      if(!data){ alert('Escolha uma data para consolidar.'); return; }
+      const dados = await solicitarLancamentosParaData(data);
+      const container = document.getElementById('resultadoConsolidado');
+      
+      // Formata a data para exibição
+      const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+      
+      container.innerHTML = `
+        <div class="relatorio-consolidado">
+          <div class="cabecalho-relatorio">
+            <h1>RELATÓRIO CONSOLIDADO DE PRODUÇÃO</h1>
+            <div class="data-relatorio">Data: ${dataFormatada}</div>
+          </div>
+          
+          <div class="secao">
+            <h3>BRITAGEM</h3>
+            ${dados.britagem && dados.britagem.length > 0 ? 
+              formatarDadosBritagem(dados.britagem) : 
+              '<div class="sem-dados">Nenhum lançamento encontrado para esta data</div>'}
+          </div>
+          
+          <div class="secao">
+            <h3>MOAGEM 3</h3>
+            ${dados.moagem3 && dados.moagem3.length > 0 ? 
+              formatarDadosMoagem3(dados.moagem3) : 
+              '<div class="sem-dados">Nenhum lançamento encontrado para esta data</div>'}
+          </div>
+          
+          <div class="secao">
+            <h3>MOAGEM 1 E 2 (3 TON/H)</h3>
+            ${dados.moagem_3ton && dados.moagem_3ton.length > 0 ? 
+              formatarDadosMoagem3ton(dados.moagem_3ton) : 
+              '<div class="sem-dados">Nenhum lançamento encontrado para esta data</div>'}
+          </div>
+          
+          <div class="secao">
+            <h3>MOAGEM 1 E 2 (6 TON/H)</h3>
+            ${dados.moagem_6ton && dados.moagem_6ton.length > 0 ? 
+              formatarDadosMoagem6ton(dados.moagem_6ton) : 
+              '<div class="sem-dados">Nenhum lançamento encontrado para esta data</div>'}
+          </div>
+          
+          <div class="secao">
+            <h3>ENSACADO</h3>
+            ${dados.ensacado && dados.ensacado.length > 0 ? 
+              formatarDadosEnsacado(dados.ensacado) : 
+              '<div class="sem-dados">Nenhum lançamento encontrado para esta data</div>'}
+          </div>
+        </div>
+      `;
+    }
+
+    document.getElementById('btnBuscar').addEventListener('click', buscarLancamentos);
+
+    // Gera PDF usando html2pdf
+    document.getElementById('btnGerarPdf').addEventListener('click', async()=>{
+      const data = document.getElementById('dataConsolidar').value;
+      if(!data){ alert('Escolha uma data antes de gerar o PDF.'); return; }
+      await buscarLancamentos();
+      const element = document.getElementById('resultadoConsolidado');
+      const opt = { 
+        margin: 0.5, 
+        filename: `Relatorio_Consolidado_${data}.pdf`, 
+        image: {type: 'jpeg', quality: 0.98}, 
+        html2canvas: {scale: 2}, 
+        jsPDF: {unit: 'in', format: 'a4', orientation: 'landscape'}
+      };
+      html2pdf().set(opt).from(element).save();
+    });
+
+    // dica: quando o documento pai recarrega, as iframes recarregam automaticamente via srcdoc
+  </script>
+</body>
+</html>
